@@ -284,6 +284,9 @@ h<sub>t</sub> = h<sub>t</sub><sup>(f)</sup> ⊕ h<sub>t</sub><sup>(b)</sup>
   <span><span class="sw" style="background:var(--good)"></span>확정된 출력</span>
 </div>
 <div class="stats" id="d1stats"></div>
+<p class="meta" style="margin-top:12px">
+두 단계의 한 칸은 시간 단위가 다릅니다 — 1단계는 프레임이 도착하는 실제 시간(예: 40 ms), 2단계는 계산 한 스텝입니다.
+</p>
 </div>
 
 <p>
@@ -305,6 +308,14 @@ h<sub>t</sub> = h<sub>t</sub><sup>(f)</sup> ⊕ h<sub>t</sub><sup>(b)</sup>
 "발화가 끝나야 첫 글자가 나온다"는 말의 실제 모습이 이것입니다.
 더 정확히는 <strong>발화가 끝나고, 역방향이 처음까지 되돌아온 뒤</strong>입니다.
 </p>
+
+<div class="note">
+<strong>"양방향은 느리다"가 아니라 "양방향은 기다려야 한다"입니다.</strong>
+두 방향은 독립이라, 시퀀스가 이미 손에 있으면(학습·파일 처리) 정방향과 역방향을 <strong>동시에</strong> 돌립니다.
+위 재생기가 2단계로 갈라지는 것은 <strong>입력이 실시간으로 도착할 때</strong>뿐이고,
+7초 발화라면 지연의 거의 전부가 <strong>말이 끝나기를 기다리는 7,000 ms</strong>입니다 —
+GPU를 100배 빠르게 해도 그대로입니다. §6이 하드웨어가 아니라 구조를 바꾸는 이유예요.
+</div>
 
 <div class="warn">
 순환층을 <strong>여러 층 쌓으면 더 나빠집니다.</strong> 2층의 역방향은 1층의 출력이 전부 나와야 시작할 수 있으니
