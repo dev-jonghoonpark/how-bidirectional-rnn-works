@@ -255,7 +255,11 @@ h<sub>t</sub> = h<sub>t</sub><sup>(f)</sup> ⊕ h<sub>t</sub><sup>(b)</sup>
 
 <div class="demo">
 <div class="demo-title">데모 1 · 시간 전개 재생기 — 언제 출력할 수 있는가</div>
-<div class="demo-sub">프레임이 왼쪽부터 한 칸씩 도착합니다. 초록 칸은 <strong>그 시점에 실제로 확정된 출력</strong>입니다.</div>
+<div class="demo-sub">
+프레임이 왼쪽부터 한 칸씩 도착합니다(<strong>1단계</strong>). 양방향은 입력이 끝난 뒤
+<strong>역방향 패스가 오른쪽에서 왼쪽으로 한 번 더 쓸고 내려가는 2단계</strong>가 있습니다.
+초록 칸은 그 시점에 실제로 확정된 출력입니다.
+</div>
 <div class="controls">
   <span class="seg" id="d1mode">
     <button data-m="uni" class="on">단방향</button>
@@ -268,13 +272,14 @@ h<sub>t</sub> = h<sub>t</sub><sup>(f)</sup> ⊕ h<sub>t</sub><sup>(b)</sup>
   <button id="d1play">▶ 재생</button>
   <button id="d1step">한 프레임</button>
   <button id="d1reset">처음으로</button>
-  <span class="meta">도착한 프레임 <span class="readout" id="d1tick">0</span> / 12</span>
+  <span class="meta">진행: <b id="d1phase">입력 대기</b></span>
 </div>
 <div class="scrollx"><div id="d1grid"></div></div>
 <div class="legend">
   <span><span class="sw" style="background:var(--code-bg);border:1px solid var(--line)"></span>도착한 입력</span>
   <span><span class="sw" style="background:var(--fw)"></span>정방향 상태</span>
   <span><span class="sw" style="background:var(--bw)"></span>역방향 상태</span>
+  <span><span class="sw" style="background:repeating-linear-gradient(45deg,var(--surface2),var(--surface2) 3px,var(--bg) 3px,var(--bg) 6px);border:1px solid var(--line)"></span>아직 계산 불가</span>
   <span><span class="sw" style="background:var(--la)"></span>행 합성곱이 엿본 칸</span>
   <span><span class="sw" style="background:var(--good)"></span>확정된 출력</span>
 </div>
@@ -283,9 +288,29 @@ h<sub>t</sub> = h<sub>t</sub><sup>(f)</sup> ⊕ h<sub>t</sub><sup>(b)</sup>
 
 <p>
 단방향으로 돌리면 출력이 입력을 <strong>한 칸 뒤에서 그대로 따라옵니다.</strong>
-양방향으로 바꾸면 12번째 프레임이 도착하기 전까지 출력 줄이 통째로 비어 있다가,
-마지막 순간에 <strong>12개가 한꺼번에</strong> 확정됩니다. 이것이 "발화가 끝나야 첫 글자가 나온다"의 실제 모습입니다.
+양방향으로 바꾸면 재생이 <strong>두 단계</strong>로 갈라집니다.
 </p>
+
+<ul>
+<li><strong>1단계 — 입력이 도착하는 동안.</strong> 정방향 줄만 전진하고 <strong>역방향 줄은 꿈쩍도 하지 않습니다.</strong>
+그림을 그리다 만 것이 아닙니다. <code>h<sub>t</sub><sup>(b)</sup> = f(x<sub>t</sub>, h<sub>t+1</sub><sup>(b)</sup>)</code>를 계산하려면
+<code>h<sub>t+1</sub><sup>(b)</sup></code>가 있어야 하고, 그걸 따라 올라가면 <strong>맨 끝의 <code>h<sub>T</sub><sup>(b)</sup></code>에 도달합니다.
+즉 역방향은 마지막 프레임이 오기 전에는 <strong>첫 한 칸조차 계산할 수 없습니다.</strong> 빗금 친 칸이 그 뜻입니다.</li>
+<li><strong>2단계 — 입력이 끝난 뒤.</strong> 이제야 역방향이 <code>x<sub>12</sub></code>에서 출발해 오른쪽에서 왼쪽으로 쓸고 내려옵니다.
+출력도 그 순서를 그대로 따라 <strong><code>y<sub>12</sub></code>부터 거꾸로</strong> 확정되고,
+<strong>첫 글자 <code>y₁</code>이 맨 마지막</strong>에 나옵니다.</li>
+</ul>
+
+<p>
+"발화가 끝나야 첫 글자가 나온다"는 말의 실제 모습이 이것입니다.
+더 정확히는 <strong>발화가 끝나고, 역방향이 처음까지 되돌아온 뒤</strong>입니다.
+</p>
+
+<div class="warn">
+순환층을 <strong>여러 층 쌓으면 더 나빠집니다.</strong> 2층의 역방향은 1층의 출력이 전부 나와야 시작할 수 있으니
+이 왕복이 층마다 반복됩니다. DS2의 <strong>양방향 7층</strong>이 실시간에서 가망이 없었던 이유입니다.
+(실제 구현은 배치와 커널로 묶어 돌지만, <strong>"마지막 프레임 없이는 시작할 수 없다"는 의존 관계 자체</strong>는 어떻게 최적화해도 사라지지 않습니다.)
+</div>
 
 <div class="note">
 오프라인 과제에서는 이게 전혀 문제가 안 됩니다. 문장 하나를 통째로 넣고 개체명을 태깅하거나,
@@ -828,10 +853,12 @@ function stat(label, value, cls) {
 /* ================= 데모 1 · 시간 전개 재생기 ================= */
 var D1 = (function () {
   var T = 12, mode = 'uni', tau = 2, tick = 0, timer = null;
-  var grid = el('d1grid'), stats = el('d1stats'), tickR = el('d1tick');
+  var grid = el('d1grid'), stats = el('d1stats'), phaseR = el('d1phase');
 
+  /* 양방향은 2단계다 — 1..T 는 입력 도착, T+1..2T 는 역방향 패스 */
+  function total() { return mode === 'bi' ? 2 * T : T; }
   function avail(t) {                      /* 출력 y_t 가 확정되는 시각 */
-    if (mode === 'bi') return T;
+    if (mode === 'bi') return 2 * T - t + 1;   /* 역방향이 t 에 닿는 순간 — y_T 가 먼저, y_1 이 맨 끝 */
     if (mode === 'row') return Math.min(t + tau, T);
     return t;
   }
@@ -844,19 +871,21 @@ var D1 = (function () {
 
   function draw() {
     var i, cs, html = '';
+    var arr = Math.min(tick, T);                  /* 도착한 프레임 수 */
+    var bk = mode === 'bi' ? Math.max(0, tick - T) : 0;   /* 역방향이 되돌아온 스텝 수 */
     html += '<div style="' + gridStyle(T, 104, 620) + '">';
 
     cs = [];
-    for (i = 1; i <= T; i++) cs.push(cell(i <= tick ? 'x' : 'idle', 'x' + i));
+    for (i = 1; i <= T; i++) cs.push(cell(i <= arr ? 'x' : 'idle', 'x' + i));
     html += row('입력 x<sub>t</sub>', cs);
 
     cs = [];
-    for (i = 1; i <= T; i++) cs.push(cell(i <= tick ? 'f' : 'idle', '→'));
+    for (i = 1; i <= T; i++) cs.push(cell(i <= arr ? 'f' : 'idle', '→'));
     html += row('정방향 h<sup>(f)</sup>', cs);
 
     if (mode === 'bi') {
       cs = [];
-      for (i = 1; i <= T; i++) cs.push(cell(tick >= T ? 'b' : 'wait', tick >= T ? '←' : '·'));
+      for (i = 1; i <= T; i++) cs.push(cell(i > T - bk ? 'b' : 'wait', i > T - bk ? '←' : '·'));
       html += row('역방향 h<sup>(b)</sup>', cs);
     }
     if (mode === 'row') {
@@ -871,26 +900,31 @@ var D1 = (function () {
 
     html += '</div>';
     grid.innerHTML = html;
-    tickR.textContent = tick;
+
+    if (tick === 0) phaseR.textContent = '입력 대기';
+    else if (tick <= T) phaseR.textContent = '① 입력 도착 ' + arr + ' / ' + T + ' 프레임';
+    else phaseR.textContent = '② 역방향 패스 ' + bk + ' / ' + T + ' 스텝';
 
     var done = 0;
     for (i = 1; i <= T; i++) if (avail(i) <= tick) done++;
-    var firstWait = avail(1) - 1;                       /* y1 을 얻기까지 더 기다린 프레임 수 */
     var s = '';
     s += stat('확정된 출력', done + ' / ' + T, done === T ? 'hl' : '');
-    s += stat('y₁ 까지 기다린 프레임', firstWait, firstWait === 0 ? 'hl' : (firstWait >= T - 1 ? 'bad' : ''));
+    s += stat('y₁ 이 나오는 시점',
+      mode === 'uni' ? 'x₁ 도착 즉시' :
+      (mode === 'bi' ? '입력 종료 + ' + T + '스텝' : 'x' + Math.min(T, 1 + tau) + ' 도착 뒤'),
+      mode === 'bi' ? 'bad' : 'hl');
     s += stat('구조적 지연', mode === 'uni' ? '0 프레임' : (mode === 'bi' ? '발화 길이 전체' : tau + ' 프레임'),
       mode === 'bi' ? 'bad' : 'hl');
     stats.innerHTML = s;
   }
 
-  function step() { tick = Math.min(T, tick + 1); draw(); if (tick >= T) stop(); }
+  function step() { tick = Math.min(total(), tick + 1); draw(); if (tick >= total()) stop(); }
   function stop() { if (timer) { clearInterval(timer); timer = null; } el('d1play').textContent = '▶ 재생'; el('d1play').classList.remove('on'); }
   function play() {
     if (timer) { stop(); return; }
-    if (tick >= T) tick = 0;
+    if (tick >= total()) tick = 0;
     el('d1play').textContent = '⏸ 정지'; el('d1play').classList.add('on');
-    timer = setInterval(step, 420);
+    timer = setInterval(step, 360);
   }
 
   seg(el('d1mode'), 'data-m', function (m) {
